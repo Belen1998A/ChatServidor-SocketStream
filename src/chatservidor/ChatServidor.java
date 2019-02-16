@@ -7,13 +7,15 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class ChatServidor {
+    
+    //Lista de clientes conectados
+    static ArrayList<Cliente> clientes=new ArrayList();
 
     public static void main(String[] args) {
-        
-        //Lista de clientes conectados
-        ArrayList<Cliente> clientes=new ArrayList();
         
         //Entrada por teclado para introducir el puerto en el que se va a levantar el servidor
         Scanner entradaEscaner = new Scanner(System.in);
@@ -25,10 +27,12 @@ public class ChatServidor {
 
             //El servidor se queda levantado hasta que se mata la aplicación
             while (true) {
-                if (clientes.size() <10) {
+                Thread.sleep(200);
+                if (clientes.size() <2) {
                     if(clientes.isEmpty())
                         System.out.println("Ningún cliente conectado.");
-
+                    
+                    System.out.println("Conexión abierta.");
                     //Aceptamos conexiones
                     Socket newSocket = serverSocket.accept();
                     InputStream is = newSocket.getInputStream();
@@ -40,21 +44,26 @@ public class ChatServidor {
                     String nickname = new String(recibido);
                     
                     //Añadimos un nuevo cliente a la lista y lo iniciamos
-                    Cliente cliente=new Cliente(os,is,nickname,clientes);
+                    Cliente cliente=new Cliente(os,is,nickname);
                     cliente.start();
                     clientes.add(cliente);
                                         
                     //Informamos de la conexión de un nuevo usuario.
                     System.out.println("Nuevo cliente conectado (nickname:" + nickname + ",ip y puerto:" + newSocket.getRemoteSocketAddress() + ").");
                     System.out.println("Hay " + clientes.size() + " clientes conectados.");
-                    os.write(new String("Servidor: "+nickname+" se ha unido.").getBytes());       
-    
-                } else {
-                    System.out.println("Conexión rechazada. Servidor lleno.");
+                    
+                    clientes.forEach((elemento) -> {
+                        elemento.enviarMensaje("Servidor: "+nickname+" se ha unido.");
+                    });
+                                        
+                    if(clientes.size()==2)
+                        System.out.println("Servidor lleno hasta que se desconecte un usuario.");
                 }   
             }
         } catch (IOException ex) {
             System.out.println("Error al recibir conexiones");
+        } catch (InterruptedException ex) {
+            Logger.getLogger(ChatServidor.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 }
@@ -69,7 +78,6 @@ class Cliente extends Thread {
     OutputStream os;
     InputStream is;
     String nickname;
-    ArrayList<Cliente> clientes;
     
     /**
      * Recibimos el socket de conexión con el cliente y abrimos las conexiones
@@ -78,11 +86,10 @@ class Cliente extends Thread {
      * @param socket socket de conexión con ek cliente
      * @throws IOException
      */
-    public Cliente(OutputStream os, InputStream is, String nickname, ArrayList<Cliente> clientes){
+    public Cliente(OutputStream os, InputStream is, String nickname){
        this.os=os;
        this.is=is;
        this.nickname=nickname;
-       this.clientes=clientes;
     }
 
     /**
@@ -97,21 +104,22 @@ class Cliente extends Thread {
                 byte[] recibido = new byte[250];
                 is.read(recibido);
                 String mensaje = new String(recibido);
-                
-                System.out.println("sout mensaje: "+mensaje);
-                if(mensaje.equals("/bye")){
+                if(mensaje.contains("/bye")){
                     System.out.println("Usuario "+nickname+" se ha desconectado.");
-                    clientes.remove(this);
-                    for(Cliente elemento: clientes){
+                    ChatServidor.clientes.remove(this);
+                    System.out.println("Hay "+ChatServidor.clientes.size()+" conectados");
+                    ChatServidor.clientes.forEach((elemento) -> {
                         elemento.enviarMensaje("Usuario "+nickname+" se ha desconectado.");
-                    }
+                    });
+                    if(ChatServidor.clientes.isEmpty())
+                        System.out.println("Ningún cliente conectado.");
                     os.close();
                     is.close();
                     stop();                   
                 }else{
-                    for(Cliente elemento: clientes){
+                    ChatServidor.clientes.forEach((elemento) -> {
                         elemento.enviarMensaje(nickname+": "+mensaje);
-                    }
+                    });
                     System.out.println(nickname+": "+mensaje);
                 }
                 
