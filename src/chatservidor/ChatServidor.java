@@ -104,6 +104,7 @@ class Cliente extends Thread {
                 byte[] recibido = new byte[250];
                 is.read(recibido);
                 String mensaje = new String(recibido);
+                //Si llega "/bye" se cierra la conexión
                 if(mensaje.contains("/bye")){
                     System.out.println("Usuario "+nickname+" se ha desconectado.");
                     ChatServidor.clientes.remove(this);
@@ -136,6 +137,7 @@ class Cliente extends Thread {
         }
     }
     
+    //Método para que al cliente le lleguen los mensajes de todos los usuarios.
     public void enviarMensaje(String mensaje){
         try {
             os.write(mensaje.getBytes());
