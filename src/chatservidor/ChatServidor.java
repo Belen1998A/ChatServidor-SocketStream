@@ -9,11 +9,16 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.concurrent.Semaphore;
+
 
 public class ChatServidor {
     
     //Lista de clientes conectados
     static ArrayList<Cliente> clientes=new ArrayList();
+
+    // Semáforo para sincronizar la emisión y recepción de mensajes
+    static Semaphore semaforo = new Semaphore(1);
 
     public static void main(String[] args) {
         
@@ -71,7 +76,7 @@ public class ChatServidor {
 /**
  * Hilo para cada cliente del servidor.
  *
- * @author dani_
+ * @author 
  */
 class Cliente extends Thread {
 
@@ -137,10 +142,12 @@ class Cliente extends Thread {
         }
     }
     
-    //Método para que al cliente le lleguen los mensajes de todos los usuarios.
+    // Método para que al cliente le lleguen los mensajes de todos los usuarios.
     public void enviarMensaje(String mensaje){
         try {
+            ChatServidor.semaforo.acquire();
             os.write(mensaje.getBytes());
+            ChatServidor.semaforo.release();
         } catch (IOException ex) {
             System.out.println("Error al enviar mensaje.");
             try {
@@ -148,6 +155,8 @@ class Cliente extends Thread {
             } catch (IOException ex1) {
                 System.out.println("Error. Envío de mensajes deshabilitado.");
             }
+        } catch (InterruptedException ex) {
+            System.out.println("Error al adquirir el semáforo.");
         }
     }
 }
